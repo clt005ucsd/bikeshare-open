@@ -146,3 +146,16 @@ Limitation: git does not store file permissions, so a fresh clone is not read-on
 The agent fixed it on the next edit.
 
 **Unclassified-column test, first run on the real data:**
+
+## My skill: /seed-fault (.claude/skills/seed-fault/SKILL.md)
+Takes the fault description as `$ARGUMENTS`, checks no tracked files are modified, makes the smallest edit, runs `make test`, restores with `git checkout --`, then runs `make test` again. Invoked once:
+~~~
+/seed-fault remove the shift(1) from cnt_roll_max_3
+Update(src/features.py)  77: out["cnt_roll_max_3"] = out[TARGET].rolling(3).max()
+PostToolUse:Edit hook reported a problem ... AssertionError: cnt_roll_max_3 for 2012-06-15: expected 7421, got 7665.0
+make test -> FAILED tests/test_leakage.py::test_roll_max_3_value ... 1 failed, 17 passed in 1.14s
+git checkout -- src/features.py
+make test -> 18 passed in 0.94s
+remove the shift(1) from cnt_roll_max_3, src/features.py:77, green
+~~~
+Both the hook and the suite caught it. Without the shift the window includes the day being predicted, so the value jumped from 7421 to 7665, the same-day count. One flaw in the skill's output: the summary line only says "green" (the final state). Step 6 should say "red -> green" so it records that the fault was caught as well as reverted.

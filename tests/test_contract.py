@@ -71,3 +71,15 @@ def test_raw_columns_contract(raw):
     raw_cols = set(raw.columns)
     extra = raw_cols - allowed
     assert not extra, f"Unexpected raw columns: {sorted(extra)}"
+
+
+def test_raw_data_unchanged():
+    """Raw data must not be modified."""
+    import hashlib
+    from pathlib import Path
+    raw_path = Path("data/raw/bike_daily.csv")
+    sha256 = hashlib.sha256()
+    with raw_path.open("rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            sha256.update(chunk)
+    assert sha256.hexdigest().startswith("a6bed1577f6e4de5"), "raw data must never be modified"

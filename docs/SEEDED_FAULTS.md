@@ -53,16 +53,16 @@ FAILED tests/test_leakage.py::test_rolling_mean_excludes_today - assert np.fl...
 **Turns to fix:** 1
 
 ## Fault 3: weather encoder's raise removed
-**Change:** [..]
-**Red test output:**
-```
-[paste]
-```
-**Hook stderr:**
-```
-[paste]
-```
-**Turns to fix:** [n]
+**Attempt 1 (wrong fault):** the agent replaced the `raise` with a comment, leaving an empty `if` block -> IndentationError. The hook fired, but on a syntax error, not on the intended fault:
+**Change (actual fault):** src/features.py line 30, `raise ValueError(f"unmapped weather labels: {sorted(unknown)}")` -> `pass`.
+
+**Result: the suite stayed green and the hook was silent.**
+Every weather label in the real data is known (GOOD/MISTY/BAD), so removing the raise changes nothing the existing tests can see. This was a real gap in the suite.
+
+**Closing the gap:** added `test_encode_weather_rejects_unknown_labels` to tests/test_leakage.py (the file the hook runs), calling `encode_weather(pd.Series(["GOOD", "HAIL"]))` inside `pytest.raises(ValueError)`. With the fault still in place:
+**Fix:** restored the raise -> `17 passed in 0.84s`.
+
+**Turns to fix:** 1 to restore the raise once a test existed to catch it. Seeding the fault correctly took 2 turns (the first attempt was a syntax error).
 
 ## My feature's test, failing before the feature existed
 ```

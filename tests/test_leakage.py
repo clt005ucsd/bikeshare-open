@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from src.config import FORBIDDEN, TARGET
-from src.features import build_features, feature_columns
+from src.features import build_features, feature_columns, encode_weather
 from src.ingest import load_raw
 
 
@@ -97,3 +97,9 @@ def test_roll_max_3_value(raw, feats):
     else:
         # Feature doesn't exist yet — this is the failure we want to see
         pytest.fail(f"cnt_roll_max_3 column not found; implement it on date {target_date}")
+
+
+def test_encode_weather_rejects_unknown_labels():
+    """Ensure encode_weather raises for unseen weather labels."""
+    with pytest.raises(ValueError):
+        encode_weather(pd.Series(["GOOD", "HAIL"]))

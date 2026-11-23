@@ -26,16 +26,31 @@ FAILED tests/test_leakage.py::test_no_forbidden_features - AssertionError: fo...
 **Turns the agent needed to fix it:** 1 (one message: 'Fix the fault and run make test' -> 16 passed)
 
 ## Fault 2: .shift(1) removed from cnt_roll_7
-**Change:** [..]
+**Change:** src/features.py line 76, `out[TARGET].shift(1).rolling(LAG_WARMUP).mean()` -> `out[TARGET].rolling(LAG_WARMUP).mean()` (today's count now inside its own 7-day mean)
 **Red test output:**
 ```
-[paste]
+$ python -m pytest tests/test_leakage.py -q
+....F...
+E           assert np.float64(4389.0) == 4414.857142857143 ± 0.00441486
+E             Obtained: 4389.0
+E             Expected: 4414.857142857143 ± 0.00441486
+tests/test_leakage.py:57: AssertionError
+FAILED tests/test_leakage.py::test_rolling_mean_excludes_today - assert np.fl...
+1 failed, 7 passed in 0.06s
 ```
 **Hook stderr:**
 ```
-[paste]
+PostToolUse:Edit hook reported a problem
+[${CLAUDE_PROJECT_DIR}/.claude/hooks/check_leakage.sh]: Leakage tests failed after editing src/features.py:
+    def test_rolling_mean_excludes_today(feats):
+        """cnt_roll_7 must be the mean of the 7 calendar days *before* today."""
+>           assert feats.set_index("dteday").cnt_roll_7[date] == pytest.approx(expected)
+E           assert np.float64(4389.0) == 4414.857142857143 ± 0.00441486
+tests/test_leakage.py:57: AssertionError
+FAILED tests/test_leakage.py::test_rolling_mean_excludes_today - assert np.fl...
+1 failed, 7 passed in 0.10s
 ```
-**Turns to fix:** [n]
+**Turns to fix:** 1
 
 ## Fault 3: weather encoder's raise removed
 **Change:** [..]

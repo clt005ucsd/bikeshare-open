@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from src.config import FORBIDDEN, TARGET
-from src.features import build_features, feature_columns
+from src.features import build_features, feature_columns, encode_weather
 from src.ingest import load_raw
 
 
@@ -64,3 +64,42 @@ def test_no_missing_values(feats):
 def test_dates_are_sorted_and_unique(feats):
     assert feats.dteday.is_monotonic_increasing
     assert feats.dteday.is_unique
+
+
+def test_roll_max_3_value(raw, feats):
+    """cnt_roll_max_3 for 2012-06-15 must be the max of cnt on d-3..d-1.
+
+    For date 2012-06-15, that's the max of:
+    - 2012-06-12 (d-3)
+    - 2012-06-13 (d-2)
+    - 2012-06-14 (d-1)
+
+    All three dates must exist in the raw data for this test to run.
+    """
+    target_date = "2012-06-15"
+
+    # Compute expected by hand from raw data
+    by_date = raw.set_index("dteday")["cnt"]
+
+    # Check that all three dates exist in raw data
+    expected_dates = ["2012-06-12", "2012-06-13", "2012-06-14"]
+    missing = [d for d in expected_dates if d not in by_date.index]
+    assert not missing, f"Missing dates from raw data: {missing}"
+
+    expected = max(by_date[d] for d in expected_dates)
+
+    # Get the feature value (this will fail if column doesn't exist)
+    got = feats.loc[feats.dteday == target_date, "cnt_roll_max_3"]
+    if len(got) > 0:
+        actual = got.iloc[0]
+        assert actual == expected, \
+            f"cnt_roll_max_3 for {target_date}: expected {expected}, got {actual}"
+    else:
+        # Feature doesn't exist yet — this is the failure we want to see
+        pytest.fail(f"cnt_roll_max_3 column not found; implement it on date {target_date}")
+
+
+def test_encode_weather_rejects_unknown_labels():
+    """Ensure encode_weather raises for unseen weather labels."""
+    with pytest.raises(ValueError):
+        encode_weather(pd.Series(["GOOD", "HAIL"]))

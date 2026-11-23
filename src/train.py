@@ -16,6 +16,7 @@ reason it fails is the headline result.
 Run: python -m src.train
 """
 import json
+import os
 
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
@@ -44,6 +45,8 @@ class PersistenceBaseline(BaseEstimator, RegressorMixin):
     def predict(self, X):
         return X[self.column].to_numpy(dtype=float)
 
+
+TARGET_DIFF = os.getenv("TARGET_DIFF") == "1"
 
 MODELS = {
     "baseline_mean": DummyRegressor(strategy="mean"),
@@ -75,11 +78,19 @@ def fit_and_score() -> dict:
         "n_test": len(test),
     }
     for name, model in MODELS.items():
-        model.fit(train[cols], train[TARGET])
+        if name == "hgb" and TARGET_DIFF:
+            # Train on the target residual (cnt - cnt_lag_1)
+            y_train = train[TARGET] - train["cnt_lag_1"]
+            model.fit(train[cols], y_train)
+            # Prediction adds the lag back to get the original target scale
+            predict_fn = lambda part: model.predict(part[cols]) + part["cnt_lag_1"]
+        else:
+            model.fit(train[cols], train[TARGET])
+            predict_fn = lambda part: model.predict(part[cols])
         results[name] = {
             split: {
-                "r2": round(float(r2_score(part[TARGET], model.predict(part[cols]))), 4),
-                "mae": round(float(mean_absolute_error(part[TARGET], model.predict(part[cols]))), 1),
+                "r2": round(float(r2_score(part[TARGET], predict_fn(part))), 4),
+                "mae": round(float(mean_absolute_error(part[TARGET], predict_fn(part))), 1),
             }
             for split, part in [("valid", valid), ("test", test)]
         }
@@ -88,6 +99,7 @@ def fit_and_score() -> dict:
 
 if __name__ == "__main__":
     res = fit_and_score()
-    METRICS.parent.mkdir(parents=True, exist_ok=True)
-    METRICS.write_text(json.dumps(res, indent=2))
+    output_path = METRICS if not TARGET_DIFF else METRICS.parent / "metrics_diff.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(res, indent=2))
     print(json.dumps({k: v for k, v in res.items() if k != "features"}, indent=2))

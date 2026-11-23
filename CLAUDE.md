@@ -9,6 +9,8 @@ rides) from calendar, weather, and lagged-demand features.
 - `make train` - fit models, write `reports/metrics.json`
 - `make test` - pytest; run this before claiming anything works
 - `make all` - the three pipeline stages in order
+- `TARGET_DIFF=1 python -m src.train` - hgb on cnt - cnt_lag_1; writes
+  `reports/metrics_diff.json`, never `metrics.json`
 
 ## Non-negotiable rules
 - **Never** put `casual` or `registered` in a feature set:
@@ -19,10 +21,21 @@ rides) from calendar, weather, and lagged-demand features.
   Train = 2011, valid = H1 2012, test = H2 2012. Never tune on test.
 - Any new lag or rolling feature must be built on a gap-free calendar
   index (`src.features.reindex_to_calendar`) and must `.shift(1)` before
-  it aggregates. Add a test for it in `tests/test_leakage.py`.
+  it aggregates. Add an exact-value test for it in `tests/test_leakage.py`
+  (a hand-computed number on a fixed date). A test that only checks the
+  column exists, or that can `pytest.skip`, does not count.
+- Every raw column must be classified in `src/config.py` (FORBIDDEN,
+  SOURCE_COLS or UNUSED_COLS) or `test_raw_columns_contract` fails.
+- **Never** modify `data/raw/`. Deny rules only match command text, so a
+  Bash/python write gets past them; `test_raw_data_unchanged` checks the sha256.
 - Report the mean baseline **and** the persistence baseline (yesterday's
   count) alongside every model. A negative R^2 is a finding, not a bug
   to hide.
+
+## Skills and agents
+- `/new-feature`, `/run-pipeline`, `/seed-fault <fault description>`
+  (seeds one fault, shows red, restores, shows green; never commits).
+- `leakage-auditor` is a subagent, not a slash command: ask for it by name.
 
 ## Style
 - Standard library, pandas, scikit-learn only. No new dependencies

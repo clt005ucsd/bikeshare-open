@@ -45,6 +45,12 @@ UNVERIFIED_COLS = {"cnt_2d_bfr"}
 # What feature_columns() and the tests actually enforce.
 FORBIDDEN = LEAKAGE_COLS | TIME_INDEX_COLS | UNVERIFIED_COLS
 
+# Raw columns that features.py reads (directly or indirectly) to build features.
+SOURCE_COLS = {"holiday", "mnth", "weekday", "workday", "weather"}
+
+# Raw columns present but deliberately not used in model features.
+UNUSED_COLS = {"season"}
+
 # Temporal split: train on 2011, validate on H1 2012, test on H2 2012.
 TRAIN_END = "2011-12-31"
 VALID_END = "2012-06-30"

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from sklearn.metrics import r2_score
 
-from src.config import LAG_WARMUP, TARGET
+from src.config import LAG_WARMUP, TARGET, FORBIDDEN, SOURCE_COLS, UNUSED_COLS
 from src.features import build_features, feature_columns, reindex_to_calendar
 from src.ingest import load_raw
 from src.train import MODELS, temporal_split
@@ -56,3 +56,30 @@ def test_persistence_baseline_is_reported():
     """The baseline that matters for a lag-driven model is 'yesterday again'.
     It must be in the comparison, whatever its score."""
     assert "baseline_persistence" in MODELS
+
+
+def test_raw_columns_contract(raw):
+    """Raw data must not have unexpected columns.
+
+    Any column in the raw CSV must be either in FORBIDDEN, a feature column,
+    or the date column 'dteday'."""
+    # Build features to determine the set of allowed feature columns.
+    feats = build_features(raw)
+    # Import FORBIDDEN here to avoid polluting the module namespace.
+    from src.config import FORBIDDEN
+    allowed = set(FORBIDDEN) | set(feature_columns(feats)) | set(SOURCE_COLS) | set(UNUSED_COLS) | {"dteday"}
+    raw_cols = set(raw.columns)
+    extra = raw_cols - allowed
+    assert not extra, f"Unexpected raw columns: {sorted(extra)}"
+
+
+def test_raw_data_unchanged():
+    """Raw data must not be modified."""
+    import hashlib
+    from pathlib import Path
+    raw_path = Path("data/raw/bike_daily.csv")
+    sha256 = hashlib.sha256()
+    with raw_path.open("rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            sha256.update(chunk)
+    assert sha256.hexdigest().startswith("a6bed1577f6e4de5"), "raw data must never be modified"

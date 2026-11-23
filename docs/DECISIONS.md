@@ -19,3 +19,4 @@ Agents append here via the `/new-feature` skill; you append here by hand.
 - 2026-11-23: Rejected the agent's first test (asserted the column was absent, so it could never fail) and replaced its pytest.skip with an assert by hand, so missing dates fail instead of passing silently.
 - 2026-11-23: Switched from qwen3.5:9b (local) to gpt-oss:120b (Ollama cloud, paid) after the failing test: local steps took 20-25 minutes on 16 GB, and Ollama cloud had no Qwen model.
 - 2026-11-23: Kept cnt_roll_max_3: validation ridge R2 0.6475 -> 0.6851, MAE 832.9 -> 763.9; hgb R2 0.2185 -> 0.32. Above the 0.01 noise floor. Test set not consulted.
+- 2026-11-23: Added test_raw_columns_contract. First run flagged holiday, mnth, season, weather, weekday, workday. Classified them in config.py as SOURCE_COLS (read by features.py) or UNUSED_COLS (season, redundant with month) rather than FORBIDDEN, since none of them leak. A new raw column now fails the test until someone classifies it.
